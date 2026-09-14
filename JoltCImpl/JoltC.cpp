@@ -20,6 +20,7 @@
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
@@ -1731,6 +1732,59 @@ JPC_API void JPC_TriangleShapeSettings_default(JPC_TriangleShapeSettings* object
 
 JPC_API bool JPC_TriangleShapeSettings_Create(const JPC_TriangleShapeSettings* self, JPC_Shape** outShape, JPC_String** outError) {
 	JPH::TriangleShapeSettings settings;
+	to_jph(self, &settings);
+
+	return HandleShapeResult(settings.Create(), outShape, outError);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// HeighfieldShapeSettings
+
+static void to_jph(const JPC_HeightFieldShapeSettings* input, JPH::HeightFieldShapeSettings* output) {
+	output->mUserData = input->UserData;
+
+	output->mOffset = to_jph(input->Offset);
+	output->mScale = to_jph(input->Scale);
+
+	// TODO(kr): Should we be copying here or just rewiring the pointers?
+	// Copies the contents of input->HeightSamples into output->mHeightSamples
+	// There are SampleCount vertices, not SampleCount - 1 quads, on each axis.
+	size_t samplesLen = input->SampleCount * input->SampleCount;
+	output->mHeightSamples.assign(input->HeightSamples, input->HeightSamples + samplesLen);
+	output->mSampleCount = input->SampleCount;
+
+	output->mMinHeightValue = input->MinHeightValue;
+	output->mMaxHeightValue = input->MaxHeightValue;
+	output->mActiveEdgeCosThresholdAngle = input->ActiveEdgeCosThresholdAngle;
+	output->mBitsPerSample = input->BitsPerSample;
+	output->mBlockSize = input->BlockSize;
+}
+
+static void to_jpc(const JPH::HeightFieldShapeSettings* input, JPC_HeightFieldShapeSettings* output) {
+	output->UserData = input->mUserData;
+
+	output->Offset = to_jpc(input->mOffset);
+	output->Scale = to_jpc(input->mScale);
+
+	// Overwrite all pointers and lengths so that the default value doesn't
+	// contain pointers to freed memory.
+	//
+	output->HeightSamples = nullptr;
+	output->SampleCount = input->mSampleCount;
+	output->MinHeightValue = input->mMinHeightValue;
+	output->MaxHeightValue = input->mMaxHeightValue;
+	output->ActiveEdgeCosThresholdAngle = input->mActiveEdgeCosThresholdAngle;
+	output->BitsPerSample = input->mBitsPerSample;
+	output->BlockSize = input->mBlockSize;
+}
+
+JPC_API void JPC_HeightFieldShapeSettings_default(JPC_HeightFieldShapeSettings* object) {
+	JPH::HeightFieldShapeSettings settings;
+	to_jpc(&settings, object);
+}
+
+JPC_API bool JPC_HeightFieldShapeSettings_Create(const JPC_HeightFieldShapeSettings* self, JPC_Shape** outShape, JPC_String** outError) {
+	JPH::HeightFieldShapeSettings settings;
 	to_jph(self, &settings);
 
 	return HandleShapeResult(settings.Create(), outShape, outError);
